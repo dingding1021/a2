@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>粉丝留言板</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:"Microsoft YaHei","PingFang SC",sans-serif;background:#f0f2f5;min-height:100vh;padding-bottom:40px}
+  .navbar{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:16px 32px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 2px 12px rgba(0,0,0,.15);position:sticky;top:0;z-index:100}
+  .navbar h1{font-size:20px;display:flex;align-items:center;gap:8px}
+  .nav-right{display:flex;align-items:center;gap:12px}
+  .admin-badge{background:rgba(255,255,255,.2);padding:5px 12px;border-radius:20px;font-size:12px}
+  .btn-login{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);color:#fff;padding:7px 18px;border-radius:8px;cursor:pointer;font-size:13px;transition:.2s}
+  .btn-login:hover{background:rgba(255,255,255,.35)}
+  .container{max-width:760px;margin:24px auto;padding:0 16px}
+
+  /* 公告 */
+  .announcement-box{background:linear-gradient(135deg,#fff8e1,#ffecb3);border-left:4px solid #ffa726;border-radius:10px;padding:16px 20px;margin-bottom:20px;position:relative}
+  .announcement-box .title{font-size:14px;font-weight:bold;color:#e65100;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+  .announcement-box .content{font-size:14px;color:#5d4037;line-height:1.7;white-space:pre-wrap;word-break:break-all}
+  .announcement-box .time{font-size:11px;color:#999;margin-top:8px}
+  .announcement-box .del-ann{position:absolute;top:10px;right:12px;background:none;border:none;color:#e65100;cursor:pointer;font-size:18px;opacity:.6}
+  .announcement-box .del-ann:hover{opacity:1}
+  .no-ann{display:none}
+
+  /* 表单 */
+  .form-card{background:#fff;border-radius:14px;padding:22px;margin-bottom:20px;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+  .form-card h2{font-size:16px;color:#333;margin-bottom:14px}
+  .row{display:flex;gap:12px;margin-bottom:12px}
+  .row .group{flex:1}
+  .group label{display:block;font-size:12px;color:#888;margin-bottom:4px;font-weight:600}
+  .group input,.group textarea{width:100%;padding:9px 12px;border:1.5px solid #e8e8e8;border-radius:8px;font-size:14px;font-family:inherit;transition:.2s;background:#fafafa}
+  .group input:focus,.group textarea:focus{outline:none;border-color:#667eea;background:#fff}
+  .group textarea{resize:vertical;min-height:80px}
+  .btn-submit{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;padding:10px 28px;border-radius:8px;font-size:14px;font-weight:bold;cursor:pointer;transition:.2s}
+  .btn-submit:hover{transform:translateY(-1px)}
+
+  /* 留言列表 */
+  .section-title{font-size:16px;color:#333;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+  .section-title .count{background:#667eea;color:#fff;font-size:11px;padding:2px 8px;border-radius:10px}
+  .msg-list{display:flex;flex-direction:column;gap:14px}
+  .msg{background:#fff;border-radius:12px;padding:18px 20px;box-shadow:0 2px 8px rgba(0,0,0,.05);animation:fadeIn .3s ease}
+  .msg.handled{border-left:4px solid #27ae60}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+  .msg-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px}
+  .msg-author{display:flex;align-items:center;gap:8px}
+  .avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:bold;flex-shrink:0}
+  .msg-name{font-size:14px;font-weight:bold;color:#333}
+  .msg-time{font-size:12px;color:#aaa}
+  .handled-tag{display:inline-block;background:#d4edda;color:#155724;font-size:11px;padding:2px 10px;border-radius:20px;font-weight:bold;margin-left:8px}
+  .msg-content{font-size:14px;color:#555;line-height:1.7;white-space:pre-wrap;word-break:break-all;margin-bottom:6px}
+  .msg-contact{font-size:12px;color:#aaa;margin-bottom:10px}
+
+  /* 回复区 */
+  .reply-section{margin-top:12px;border-top:1px solid #f0f0f0;padding-top:12px}
+  .reply-list{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+  .reply{padding:10px 14px;border-radius:8px;font-size:13px;line-height:1.6;background:#f8f9fa}
+  .reply.admin-reply{background:#f0f3ff;border-left:3px solid #667eea}
+  .reply-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+  .reply-name{font-weight:bold;color:#333;font-size:12px}
+  .reply-name.admin{color:#667eea}
+  .reply-name .role-tag{background:#667eea;color:#fff;font-size:10px;padding:1px 6px;border-radius:4px;margin-left:4px}
+  .reply-time{font-size:11px;color:#aaa}
+  .reply-content{color:#555;white-space:pre-wrap;word-break:break-all}
+  .reply-form{display:flex;gap:8px;align-items:flex-start}
+  .reply-form input{flex:0 0 100px;padding:7px 10px;border:1.5px solid #e8e8e8;border-radius:6px;font-size:12px;font-family:inherit;background:#fafafa}
+  .reply-form input:focus{outline:none;border-color:#667eea;background:#fff}
+  .reply-form textarea{flex:1;padding:7px 10px;border:1.5px solid #e8e8e8;border-radius:6px;font-size:12px;font-family:inherit;resize:none;min-height:34px;max-height:100px;background:#fafafa}
+  .reply-form textarea:focus{outline:none;border-color:#667eea;background:#fff}
+  .reply-form button{padding:7px 14px;background:#667eea;color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;white-space:nowrap;align-self:center}
+  .reply-form button:hover{background:#5568d3}
+  .reply-toggle{font-size:12px;color:#667eea;cursor:pointer;margin-bottom:8px;display:inline-block}
+  .reply-toggle:hover{text-decoration:underline}
+
+  /* 操作按钮 */
+  .msg-actions{margin-top:12px;display:flex;gap:8px;flex-wrap:wrap}
+  .btn-del{background:#ffebee;color:#c62828;border:none;padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer;transition:.2s}
+  .btn-del:hover{background:#ffcdd2}
+  .btn-handle{background:#e8f5e9;color:#2e7d32;border:none;padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer;transition:.2s}
+  .btn-handle:hover{background:#c8e6c9}
+  .btn-unhandle{background:#fff3e0;color:#e65100;border:none;padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer;transition:.2s}
+  .btn-unhandle:hover{background:#ffe0b2}
+
+  .empty{text-align:center;padding:50px 20px;color:#bbb;font-size:14px}
+
+  /* 登录弹窗 */
+  .modal-mask{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center}
+  .modal-mask.show{display:flex}
+  .modal{background:#fff;border-radius:16px;padding:30px;width:90%;max-width:380px;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+  .modal h3{font-size:18px;color:#333;margin-bottom:20px;text-align:center}
+  .modal .group{margin-bottom:14px}
+  .modal-btns{display:flex;gap:10px;margin-top:20px}
+  .modal-btns button{flex:1;padding:10px;border-radius:8px;border:none;font-size:14px;cursor:pointer;font-weight:bold}
+  .btn-confirm{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff}
+  .btn-cancel{background:#eee;color:#666}
+  .login-error{color:#e74c3c;font-size:13px;text-align:center;margin-top:10px;display:none}
+
+  /* 管理员面板 */
+  .admin-panel{background:#fff;border-radius:14px;padding:20px;margin-bottom:20px;box-shadow:0 2px 10px rgba(0,0,0,.06);border:2px dashed #667eea;display:none}
+  .admin-panel.show{display:block}
+  .admin-panel h3{font-size:15px;color:#667eea;margin-bottom:12px}
+  .admin-panel textarea{width:100%;padding:10px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:14px;font-family:inherit;min-height:60px;resize:vertical;margin-bottom:10px}
+  .admin-panel textarea:focus{outline:none;border-color:#667eea}
+
+  .toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-60px);background:#333;color:#fff;padding:12px 24px;border-radius:8px;font-size:14px;z-index:300;transition:.3s}
+  .toast.show{transform:translateX(-50%) translateY(0)}
+  .toast.success{background:#27ae60}
+  .toast.error{background:#e74c3c}
+</style>
+</head>
+<body>
+
+<div class="navbar">
+  <h1>💬 粉丝留言板</h1>
+  <div class="nav-right">
+    <span class="admin-badge" id="adminBadge" style="display:none">👑 管理员</span>
+    <button class="btn-login" id="loginBtn" onclick="openLogin()">管理员登录</button>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- 公告 -->
+  <div class="announcement-box no-ann" id="annBox">
+    <button class="del-ann" id="delAnnBtn" onclick="deleteAnn()" style="display:none" title="删除公告">×</button>
+    <div class="title">📢 主播公告</div>
+    <div class="content" id="annContent"></div>
+    <div class="time" id="annTime"></div>
+  </div>
+
+  <!-- 管理员面板 -->
+  <div class="admin-panel" id="adminPanel">
+    <h3>📝 发布公告</h3>
+    <textarea id="annInput" placeholder="输入公告内容，粉丝打开页面就能看到..."></textarea>
+    <button class="btn-submit" onclick="publishAnn()">发布公告</button>
+  </div>
+
+  <!-- 留言表单 -->
+  <div class="form-card">
+    <h2>✍️ 写留言</h2>
+    <form id="msgForm">
+      <div class="row">
+        <div class="group">
+          <label>昵称 *</label>
+          <input type="text" id="msgName" placeholder="你的昵称" required maxlength="20">
+        </div>
+        <div class="group">
+          <label>联系方式（选填）</label>
+          <input type="text" id="msgContact" placeholder="QQ/微信" maxlength="30">
+        </div>
+      </div>
+      <div class="group">
+        <label>留言内容 *</label>
+        <textarea id="msgContent" placeholder="说点什么吧..." required maxlength="1000"></textarea>
+      </div>
+      <button type="submit" class="btn-submit">发布留言</button>
+    </form>
+  </div>
+
+  <!-- 留言列表 -->
+  <div class="section-title">
+    📋 全部留言 <span class="count" id="msgCount">0</span>
+  </div>
+  <div class="msg-list" id="msgList">
+    <div class="empty">还没有留言，来抢沙发吧～</div>
+  </div>
+
+</div>
+
+<!-- 登录弹窗 -->
+<div class="modal-mask" id="loginModal">
+  <div class="modal">
+    <h3>🔐 管理员登录</h3>
+    <div class="group">
+      <label>账号</label>
+      <input type="text" id="loginUser" placeholder="请输入账号">
+    </div>
+    <div class="group">
+      <label>密码</label>
+      <input type="password" id="loginPass" placeholder="请输入密码">
+    </div>
+    <div class="login-error" id="loginError">账号或密码错误</div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeLogin()">取消</button>
+      <button class="btn-confirm" onclick="doLogin()">登录</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // 管理员账号密码
+  const ADMIN_USER = "dingding";
+  const ADMIN_PASS = "66102140084";
+
+  let isAdmin = localStorage.getItem('isAdmin') === 'true';
+
+  // ========== 数据存储 ==========
+  function getMessages(){
+    try { return JSON.parse(localStorage.getItem('fan_messages') || '[]'); }
+    catch(e){ return []; }
+  }
+  function saveMessages(arr){ localStorage.setItem('fan_messages', JSON.stringify(arr)); }
+  function getAnnouncement(){
+    try { return JSON.parse(localStorage.getItem('fan_announcement') || 'null'); }
+    catch(e){ return null; }
+  }
+  function saveAnnouncement(obj){ localStorage.setItem('fan_announcement', JSON.stringify(obj)); }
+  function genId(){ return Date.now() + '_' + Math.random().toString(36).substr(2,6); }
+
+  // ========== 工具函数 ==========
+  function formatTime(ts){
+    const d = new Date(ts);
+    const pad = n => String(n).padStart(2,'0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+  function escapeHtml(str){
+    const div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
+  }
+  function showToast(msg, type){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show ' + type;
+    setTimeout(() => t.className = 'toast', 2500);
+  }
+
+  // ========== 渲染留言 ==========
+  function renderMessages(){
+    const messages = getMessages().sort((a,b) => b.time - a.time);
+    const list = document.getElementById('msgList');
+    document.getElementById('msgCount').textContent = messages.length;
+    if(messages.length === 0){
+      list.innerHTML = '<div class="empty">还没有留言，来抢沙发吧～</div>';
+      return;
+    }
+    list.innerHTML = messages.map(m => {
+      const replies = m.replies || [];
+      const repliesHtml = replies.length > 0 ? replies.map(r => `
+        <div class="reply ${r.isAdmin ? 'admin-reply' : ''}">
+          <div class="reply-head">
+            <span class="reply-name ${r.isAdmin ? 'admin' : ''}">
+              ${escapeHtml(r.name)}
+              ${r.isAdmin ? '<span class="role-tag">主播</span>' : ''}
+            </span>
+            <span class="reply-time">${formatTime(r.time)}</span>
+          </div>
+          <div class="reply-content">${escapeHtml(r.content)}</div>
+        </div>
+      `).join('') : '';
+
+      return `
+      <div class="msg ${m.handled ? 'handled' : ''}">
+        <div class="msg-head">
+          <div class="msg-author">
+            <div class="avatar">${escapeHtml((m.name||'?').charAt(0))}</div>
+            <span class="msg-name">${escapeHtml(m.name||'匿名')}</span>
+            ${m.handled ? '<span class="handled-tag">✅ 已处理</span>' : ''}
+          </div>
+          <span class="msg-time">${formatTime(m.time)}</span>
+        </div>
+        <div class="msg-content">${escapeHtml(m.content||'')}</div>
+        ${m.contact ? `<div class="msg-contact">联系方式：${escapeHtml(m.contact)}</div>` : ''}
+
+        <div class="reply-section">
+          ${replies.length > 0 ? `<div class="reply-list">${repliesHtml}</div>` : ''}
+          <div class="reply-form">
+            <input type="text" id="replyName_${m.id}" placeholder="昵称" maxlength="20" value="${isAdmin ? '主播' : ''}" ${isAdmin ? 'readonly style="background:#f0f3ff;color:#667eea;font-weight:bold"' : ''}>
+            <textarea id="replyContent_${m.id}" placeholder="${isAdmin ? '以主播身份回复...' : '回复这条留言...'}" maxlength="500"></textarea>
+            <button onclick="addReply('${m.id}')">回复</button>
+          </div>
+        </div>
+
+        ${isAdmin ? `
+        <div class="msg-actions">
+          <button class="${m.handled ? 'btn-unhandle' : 'btn-handle'}" onclick="toggleHandled('${m.id}')">
+            ${m.handled ? '↩️ 取消已处理' : '✅ 标记已处理'}
+          </button>
+          <button class="btn-del" onclick="deleteMsg('${m.id}')">🗑 删除留言</button>
+        </div>` : ''}
+      </div>
+      `;
+    }).join('');
+  }
+
+  // ========== 渲染公告 ==========
+  function renderAnnouncement(){
+    const ann = getAnnouncement();
+    const box = document.getElementById('annBox');
+    if(ann && ann.content){
+      box.classList.remove('no-ann');
+      document.getElementById('annContent').textContent = ann.content;
+      document.getElementById('annTime').textContent = '发布于 ' + formatTime(ann.time);
+      if(isAdmin) document.getElementById('delAnnBtn').style.display = 'block';
+    } else {
+      box.classList.add('no-ann');
+    }
+  }
+
+  // ========== 提交留言 ==========
+  document.getElementById('msgForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const name = document.getElementById('msgName').value.trim();
+    const contact = document.getElementById('msgContact').value.trim();
+    const content = document.getElementById('msgContent').value.trim();
+    if(!name || !content) return;
+
+    const messages = getMessages();
+    messages.push({
+      id: genId(),
+      name: name.substring(0,20),
+      contact: contact.substring(0,30),
+      content: content.substring(0,1000),
+      time: Date.now(),
+      handled: false,
+      replies: []
+    });
+    saveMessages(messages);
+    showToast('✅ 留言发布成功！', 'success');
+    e.target.reset();
+    renderMessages();
+  });
+
+  // ========== 添加回复 ==========
+  function addReply(msgId){
+    const nameEl = document.getElementById('replyName_' + msgId);
+    const contentEl = document.getElementById('replyContent_' + msgId);
+    const name = nameEl.value.trim();
+    const content = contentEl.value.trim();
+    if(!name){ showToast('请输入昵称', 'error'); return; }
+    if(!content){ showToast('请输入回复内容', 'error'); return; }
+
+    const messages = getMessages();
+    const msg = messages.find(m => m.id === msgId);
+    if(!msg) return;
+    if(!msg.replies) msg.replies = [];
+    msg.replies.push({
+      id: genId(),
+      name: name.substring(0,20),
+      content: content.substring(0,500),
+      time: Date.now(),
+      isAdmin: isAdmin
+    });
+    saveMessages(messages);
+    showToast('回复成功', 'success');
+    renderMessages();
+  }
+
+  // ========== 标记已处理 ==========
+  function toggleHandled(msgId){
+    const messages = getMessages();
+    const msg = messages.find(m => m.id === msgId);
+    if(!msg) return;
+    msg.handled = !msg.handled;
+    saveMessages(messages);
+    showToast(msg.handled ? '已标记为已处理' : '已取消已处理', 'success');
+    renderMessages();
+  }
+
+  // ========== 管理员登录 ==========
+  function openLogin(){
+    document.getElementById('loginModal').classList.add('show');
+    document.getElementById('loginError').style.display = 'none';
+  }
+  function closeLogin(){
+    document.getElementById('loginModal').classList.remove('show');
+    document.getElementById('loginUser').value = '';
+    document.getElementById('loginPass').value = '';
+  }
+  function doLogin(){
+    const u = document.getElementById('loginUser').value.trim();
+    const p = document.getElementById('loginPass').value.trim();
+    if(u === ADMIN_USER && p === ADMIN_PASS){
+      isAdmin = true;
+      localStorage.setItem('isAdmin','true');
+      closeLogin();
+      showAdminUI();
+      renderMessages();
+      renderAnnouncement();
+      showToast('👑 管理员登录成功', 'success');
+    } else {
+      document.getElementById('loginError').style.display = 'block';
+    }
+  }
+  function logout(){
+    isAdmin = false;
+    localStorage.removeItem('isAdmin');
+    document.getElementById('adminBadge').style.display = 'none';
+    document.getElementById('adminPanel').classList.remove('show');
+    document.getElementById('loginBtn').textContent = '管理员登录';
+    document.getElementById('loginBtn').onclick = openLogin;
+    document.getElementById('delAnnBtn').style.display = 'none';
+    renderMessages();
+    renderAnnouncement();
+    showToast('已退出管理员', '');
+  }
+  function showAdminUI(){
+    document.getElementById('adminBadge').style.display = 'inline-block';
+    document.getElementById('adminPanel').classList.add('show');
+    document.getElementById('loginBtn').textContent = '退出登录';
+    document.getElementById('loginBtn').onclick = logout;
+  }
+
+  // ========== 公告管理 ==========
+  function publishAnn(){
+    const content = document.getElementById('annInput').value.trim();
+    if(!content){ showToast('请输入公告内容', 'error'); return; }
+    saveAnnouncement({ content: content.substring(0,500), time: Date.now() });
+    showToast('📢 公告发布成功', 'success');
+    document.getElementById('annInput').value = '';
+    renderAnnouncement();
+  }
+  function deleteAnn(){
+    if(!confirm('确定删除公告吗？')) return;
+    localStorage.removeItem('fan_announcement');
+    showToast('公告已删除', 'success');
+    renderAnnouncement();
+  }
+
+  // ========== 删除留言 ==========
+  function deleteMsg(id){
+    if(!confirm('确定删除这条留言吗？')) return;
+    const messages = getMessages().filter(m => m.id !== id);
+    saveMessages(messages);
+    showToast('留言已删除', 'success');
+    renderMessages();
+  }
+
+  // ========== 初始化 ==========
+  document.getElementById('loginPass').addEventListener('keypress', e => {
+    if(e.key === 'Enter') doLogin();
+  });
+
+  if(isAdmin) showAdminUI();
+  renderMessages();
+  renderAnnouncement();
+</script>
+</body>
+</html>
